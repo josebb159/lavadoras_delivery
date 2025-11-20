@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>67388610052-4i1qou5j3fobk86mn10nlahig0hfntnt.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.67388610052-4i1qou5j3fobk86mn10nlahig0hfntnt</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>67388610052-5ug7psv3gd24n1oo70ei9jrisijakfig.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCUUrMgKmKyhGOvH9-ON4ut_I_wscpYtzs</string>
+	<key>GCM_SENDER_ID</key>
+	<string>67388610052</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.lavadora.appdelivery</string>
+	<key>PROJECT_ID</key>
+	<string>alquilav-133d2</string>
+	<key>STORAGE_BUCKET</key>
+	<string>alquilav-133d2.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:67388610052:ios:9fcbeaaa3974a39da3c751</string>
+	<key>DATABASE_URL</key>
+	<string>https://alquilav-133d2-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

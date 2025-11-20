@@ -1,0 +1,188 @@
+{
+  "project_info": {
+    "project_number": "67388610052",
+    "firebase_url": "https://alquilav-133d2-default-rtdb.firebaseio.com",
+    "project_id": "alquilav-133d2",
+    "storage_bucket": "alquilav-133d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67388610052:android:27025ef99c33ccbea3c751",
+        "android_client_info": {
+          "package_name": "com.alquilav"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "67388610052-fe902d2i9eh3fj9s0m8m1cj0222su8cd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alquilav",
+            "certificate_hash": "5ced6f8716f48c09aea5de2cd537cb4917ca7216"
+          }
+        },
+        {
+          "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbuS4KHF6c8UjnHFWpnJVyGi0FILz4qtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67388610052:android:5a86067192c5deb4a3c751",
+        "android_client_info": {
+          "package_name": "com.alquilav.driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "67388610052-g3jfqe6hlier6bkksm048qu4rs4sjva9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alquilav.driver",
+            "certificate_hash": "5ced6f8716f48c09aea5de2cd537cb4917ca7216"
+          }
+        },
+        {
+          "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbuS4KHF6c8UjnHFWpnJVyGi0FILz4qtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67388610052:android:48dd5fc73335395ca3c751",
+        "android_client_info": {
+          "package_name": "com.example.lavadora_app2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "67388610052-8ifmpl7rtign25r2qduigrjtkmd1nhba.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lavadora_app2",
+            "certificate_hash": "3db3129212ca54bd1c0aeffaa9756e83d88f7f66"
+          }
+        },
+        {
+          "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbuS4KHF6c8UjnHFWpnJVyGi0FILz4qtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67388610052:android:145b0de6ad712449a3c751",
+        "android_client_info": {
+          "package_name": "com.example.lavadora_app_delivery"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "67388610052-tc74vlc9t50v24jrs917e22urajjq2ov.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lavadora_app_delivery",
+            "certificate_hash": "3db3129212ca54bd1c0aeffaa9756e83d88f7f66"
+          }
+        },
+        {
+          "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbuS4KHF6c8UjnHFWpnJVyGi0FILz4qtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67388610052:android:94b71714ce3f96d4a3c751",
+        "android_client_info": {
+          "package_name": "com.lavadora.appdelivery"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbuS4KHF6c8UjnHFWpnJVyGi0FILz4qtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "67388610052-m5k5i328sh56oueuoivljac0p4m48ssf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
