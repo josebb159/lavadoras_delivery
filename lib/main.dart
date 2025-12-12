@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
@@ -17,10 +18,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'providers/auth_provider.dart';
+import 'providers/home_provider.dart';
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
 
@@ -47,9 +51,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   switch (action) {
     case 'update_rental':
       title = "Actualización de estado";
-      body = idServicio.isNotEmpty
-          ? "Tu servicio #$idServicio ha cambiado de estado."
-          : "Tu servicio ha cambiado de estado.";
+      body =
+          idServicio.isNotEmpty
+              ? "Tu servicio #$idServicio ha cambiado de estado."
+              : "Tu servicio ha cambiado de estado.";
       break;
 
     case 'open_mis_servicios':
@@ -86,7 +91,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -102,8 +106,9 @@ Future<void> main() async {
   );
 
   // ✅ Inicializar notificaciones locales
-  const androidInitSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidInitSettings = AndroidInitializationSettings(
+    '@mipmap/ic_launcher',
+  );
   const initSettings = InitializationSettings(android: androidInitSettings);
 
   await flutterLocalNotificationsPlugin.initialize(
@@ -118,17 +123,20 @@ Future<void> main() async {
         if (action == 'update_rental' && id != null) {
           navigatorKey.currentState?.pushNamed('/mis_servicios');
         } else if (action == 'logout') {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (r) => false);
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/login',
+            (r) => false,
+          );
         }
       }
     },
   );
 
-
   // ✅ Crear canal de notificaciones en Android
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>()
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 
   // ✅ Notificación recibida en foreground
@@ -140,7 +148,7 @@ Future<void> main() async {
     String title = "Lavadora App";
     String body = "Nueva notificación";
 
-      SharedPreferences prefs = await SharedPreferences.getInstance();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userData = prefs.getString('user');
     Map<String, dynamic> user = {};
 
@@ -158,7 +166,9 @@ Future<void> main() async {
           if (context != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text("📢 Actualización de estado: Tu servicio ha cambiado."),
+                content: Text(
+                  "📢 Actualización de estado: Tu servicio ha cambiado.",
+                ),
                 duration: Duration(seconds: 4),
                 backgroundColor: Colors.blueAccent,
               ),
@@ -238,7 +248,10 @@ Future<void> main() async {
           break;
 
         case 'logout':
-          navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (r) => false);
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/login',
+            (r) => false,
+          );
           break;
 
         default:
@@ -286,7 +299,15 @@ Future<void> main() async {
   // ✅ Handler en segundo plano
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => HomeProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -295,7 +316,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // 👈 Necesario para navegación desde notificaciones
+      navigatorKey:
+          navigatorKey, // 👈 Necesario para navegación desde notificaciones
       title: 'Lavadora',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF0090FF)),
@@ -310,12 +332,11 @@ class MyApp extends StatelessWidget {
         '/pagos': (context) => PagosScreen(),
         '/pagosyu': (context) => PagosPayUScreen(),
         '/rental': (context) => const RentalScreen(),
-        '/mis_servicios': (context) =>  MisServiciosScreen(),
-        '/mi_cuenta' : (context) =>  MiCuentaScreen(),
-        '/recarga' : (context) =>  RecargaScreen(),
-        '/lavadora' :  (context) =>  MisLavadorasScreen(),
+        '/mis_servicios': (context) => MisServiciosScreen(),
+        '/mi_cuenta': (context) => MiCuentaScreen(),
+        '/recarga': (context) => RecargaScreen(),
+        '/lavadora': (context) => MisLavadorasScreen(),
       },
     );
   }
 }
-
