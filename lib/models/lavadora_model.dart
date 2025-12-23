@@ -4,6 +4,8 @@ class Lavadora {
   final String descripcion;
   final String estado;
   final double precio;
+  final String?
+  clienteActual; // Nombre del cliente que tiene la lavadora alquilada
 
   Lavadora({
     required this.id,
@@ -11,6 +13,7 @@ class Lavadora {
     required this.descripcion,
     required this.estado,
     required this.precio,
+    this.clienteActual,
   });
 
   factory Lavadora.fromJson(Map<String, dynamic> json) {
@@ -21,6 +24,10 @@ class Lavadora {
           json['type'] ?? '', // Mapped from 'type' as per original code
       estado: json['status'] ?? 'disponible',
       precio: double.tryParse(json['precio']?.toString() ?? '0') ?? 0.0,
+      clienteActual: json['cliente_actual'],
     );
   }
+
+  bool get isAlquilada => estado.toLowerCase() == 'alquilada';
+  bool get isDisponible => estado.toLowerCase() == 'disponible';
 }

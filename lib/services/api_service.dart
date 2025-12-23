@@ -14,6 +14,12 @@ class ApiService {
   ) async {
     final uri = Uri.parse('${AppConstants.baseUrl}?action=$action');
 
+    print(
+      '----------------------------------------------------------------------',
+    );
+    print('📡 Request POST: $uri');
+    print('📤 Body: ${json.encode(data)}');
+
     try {
       final response = await http.post(
         uri,
@@ -24,13 +30,19 @@ class ApiService {
         body: json.encode(data),
       );
 
+      print('📥 Response Status: ${response.statusCode}');
+      print('📥 Response Body: ${response.body}');
+      print(
+        '----------------------------------------------------------------------',
+      );
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
         throw Exception('Error HTTP: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error en ApiService ($action): $e');
+      print('🔥 Error en ApiService ($action): $e');
       rethrow;
     }
   }

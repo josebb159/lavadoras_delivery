@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:lavadora_app/services/api_service.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatScreen extends StatefulWidget {
   final int rentalId; // id_alquiler
   final int deliveryId; // id_domiciliario
 
-  const ChatScreen({Key? key, required this.rentalId, required this.deliveryId}) : super(key: key);
+  const ChatScreen({Key? key, required this.rentalId, required this.deliveryId})
+    : super(key: key);
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -58,48 +60,32 @@ class _ChatScreenState extends State<ChatScreen> {
       isLoading = true; // 🔹 Activa la pantalla de carga
     });
 
-
     try {
-      print("📡 Enviando request a la API con rentalId=${widget.rentalId}");
+      final jsonData = await ApiService().post('get_chat_messages', {
+        'id_alquiler': widget.rentalId,
+      });
 
-      final response = await http.post(
-        Uri.parse('https://alquilav.com/api/api.php?action=get_chat_messages'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'id_alquiler': widget.rentalId}),
-      );
+      if (jsonData['status'] == 'ok') {
+        final mensajes =
+            jsonData['mensajes'] ?? []; // 👈 usar la clave correcta
 
-      print("📩 Código de respuesta: ${response.statusCode}");
-      print("📩 Body de respuesta: ${response.body}");
+        print("✅ Mensajes recibidos: ${mensajes.length}");
 
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-
-        print("✅ JSON decodificado: $jsonData");
-
-        if (jsonData['status'] == 'ok') {
-          final mensajes = jsonData['mensajes'] ?? []; // 👈 usar la clave correcta
-
-          print("✅ Mensajes recibidos: ${mensajes.length}");
-
-          setState(() {
-            chatMessages = mensajes;
-          });
-        } else {
-          print("⚠️ Respuesta de API con error: ${jsonData['status']}");
-        }
+        setState(() {
+          chatMessages = mensajes;
+        });
       } else {
-        print("❌ Error en el servidor: ${response.reasonPhrase}");
+        print("⚠️ Respuesta de API con error: ${jsonData['status']}");
       }
     } catch (e, stacktrace) {
       print("💥 Error cargando mensajes: $e");
       print("🧵 Stacktrace: $stacktrace");
-    }finally {
+    } finally {
       setState(() {
         isLoading = false; // 🔹 Desactiva la pantalla de carga
       });
     }
   }
-
 
   // Enviar mensaje
   Future<void> sendChatMessage(String mensaje) async {
@@ -112,42 +98,25 @@ class _ChatScreenState extends State<ChatScreen> {
       final payload = {
         'id_alquiler': widget.rentalId,
         'id_usuario': widget.deliveryId,
-        'id_domiciliario':user!['id'],
+        'id_domiciliario': user!['id'],
         'mensaje': mensaje,
         'tipo': 'domiciliario', // siempre usuario desde la app cliente
       };
 
-      print("📡 Enviando mensaje con payload: $payload");
+      final jsonData = await ApiService().post('send_chat_message', payload);
 
-      final response = await http.post(
-        Uri.parse('https://alquilav.com/api/api.php?action=send_chat_message'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(payload),
-      );
-
-      print("📩 Código de respuesta: ${response.statusCode}");
-      print("📩 Body de respuesta: ${response.body}");
-
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        print("✅ JSON decodificado: $jsonData");
-
-        if (jsonData['status'] == 'ok') {
-          print("✅ Mensaje enviado correctamente.");
-          _messageController.clear();
-          getChatMessages(); // refrescar mensajes
-        } else {
-          print("⚠️ Error en respuesta API: ${jsonData['status']}");
-        }
+      if (jsonData['status'] == 'ok') {
+        print("✅ Mensaje enviado correctamente.");
+        _messageController.clear();
+        getChatMessages(); // refrescar mensajes
       } else {
-        print("❌ Error en servidor: ${response.reasonPhrase}");
+        print("⚠️ Error en respuesta API: ${jsonData['status']}");
       }
     } catch (e, stacktrace) {
       print("💥 Error enviando mensaje: $e");
       print("🧵 Stacktrace: $stacktrace");
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -156,63 +125,74 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Text("Chat con el Cliente"),
         backgroundColor: Colors.blue,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              reverse: false,
-              itemCount: chatMessages.length,
-              itemBuilder: (context, index) {
-                final msg = chatMessages[index];
-                final isUser = msg['remitente'] == 'domiciliario';
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: isUser ? Colors.blue[200] : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      msg['mensaje'],
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Divider(height: 1),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: "Escribe un mensaje...",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      reverse: false,
+                      itemCount: chatMessages.length,
+                      itemBuilder: (context, index) {
+                        final msg = chatMessages[index];
+                        final isUser = msg['remitente'] == 'domiciliario';
+                        return Align(
+                          alignment:
+                              isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                          child: Container(
+                            padding: EdgeInsets.all(10),
+                            margin: EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  isUser ? Colors.blue[200] : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              msg['mensaje'],
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
-                SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.send, color: Colors.blue),
-                  onPressed: () => sendChatMessage(_messageController.text),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
+                  Divider(height: 1),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    color: Colors.white,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            decoration: InputDecoration(
+                              hintText: "Escribe un mensaje...",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.send, color: Colors.blue),
+                          onPressed:
+                              () => sendChatMessage(_messageController.text),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 }

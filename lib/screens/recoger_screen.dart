@@ -10,6 +10,9 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:lavadora_app/screens/chat.dart';
+
+import 'package:lavadora_app/services/api_service.dart';
+
 class RecogerScreen extends StatefulWidget {
   final int idAlquiler;
   const RecogerScreen({Key? key, required this.idAlquiler}) : super(key: key);
@@ -42,7 +45,6 @@ class _RecogerScreenState extends State<RecogerScreen> {
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
   Timer? _ubicacionTimer;
-
 
   LatLng origen = const LatLng(0, 0);
   LatLng destino = const LatLng(0, 0);
@@ -91,16 +93,11 @@ class _RecogerScreenState extends State<RecogerScreen> {
           desiredAccuracy: LocationAccuracy.high,
         );
 
-        final response = await http.post(
-          Uri.parse('https://alquilav.com/api/api.php?action=update_ubicacion_domiciliario'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-
-            'user_id': userId,
-            'latitud': position.latitude.toString(),
-            'longitud': position.longitude.toString(),
-          }),
-        );
+        await ApiService().post('update_ubicacion_domiciliario', {
+          'user_id': userId,
+          'latitud': position.latitude.toString(),
+          'longitud': position.longitude.toString(),
+        });
 
         setState(() {
           _markers.removeWhere((m) => m.markerId == const MarkerId("origen"));
@@ -113,13 +110,8 @@ class _RecogerScreenState extends State<RecogerScreen> {
           );
         });
 
-
-        if (response.statusCode == 200) {
-          print('✅ Ubicación enviada correctamente');
-          _actualizarMapa(position.latitude, position.longitude);
-        } else {
-          print('❌ Error al enviar ubicación: ${response.statusCode}');
-        }
+        print('✅ Ubicación enviada correctamente');
+        _actualizarMapa(position.latitude, position.longitude);
       } catch (e) {
         print('⚠️ Error al obtener/enviar ubicación: $e');
       }
@@ -156,8 +148,6 @@ class _RecogerScreenState extends State<RecogerScreen> {
     }
   }
 
-
-
   Future<void> _loadIcons() async {
     origenIcon = await BitmapDescriptor.fromAssetImage(
       const ImageConfiguration(size: Size(48, 48)),
@@ -174,22 +164,19 @@ class _RecogerScreenState extends State<RecogerScreen> {
     _ubicacionTimer?.cancel();
     super.dispose();
   }
-  Future<void> enviarUbicacionPeriodicamente( ) async {
+
+  Future<void> enviarUbicacionPeriodicamente() async {
     Timer.periodic(Duration(seconds: 30), (timer) async {
       try {
         Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
         );
 
-        final response = await http.post(
-          Uri.parse('https://alquilav.com/api/api.php?action=update_ubicacion_domiciliario'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'user_id': userId,
-            'latitud': position.latitude.toString(),
-            'longitud': position.longitude.toString(),
-          }),
-        );
+        await ApiService().post('update_ubicacion_domiciliario', {
+          'user_id': userId,
+          'latitud': position.latitude.toString(),
+          'longitud': position.longitude.toString(),
+        });
 
         setState(() {
           _markers.removeWhere((m) => m.markerId == const MarkerId("origen"));
@@ -202,12 +189,7 @@ class _RecogerScreenState extends State<RecogerScreen> {
           );
         });
 
-
-        if (response.statusCode == 200) {
-          print('✅ Ubicación enviada correctamente');
-        } else {
-          print('❌ Error al enviar ubicación: ${response.statusCode}');
-        }
+        print('✅ Ubicación enviada correctamente');
       } catch (e) {
         print('⚠️ Error al obtener/enviar ubicación: $e');
       }
@@ -226,7 +208,6 @@ class _RecogerScreenState extends State<RecogerScreen> {
     }
   }
 
-
   Future<void> _openWhatsApp() async {
     if (clienteTelefono.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,19 +219,24 @@ class _RecogerScreenState extends State<RecogerScreen> {
     final phone = clienteTelefono.replaceAll(RegExp(r'[^0-9]'), '');
     final fullPhone = phone.startsWith('57') ? phone : '57$phone';
 
-    final Uri uri = Uri.parse("whatsapp://send?phone=$fullPhone&text=${Uri.encodeComponent("hola")}");
+    final Uri uri = Uri.parse(
+      "whatsapp://send?phone=$fullPhone&text=${Uri.encodeComponent("hola")}",
+    );
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("WhatsApp no está instalado o no se puede abrir.")),
+        const SnackBar(
+          content: Text("WhatsApp no está instalado o no se puede abrir."),
+        ),
       );
     }
   }
 
   Future<void> _getRouteInfo() async {
-    final String apiKey = "AIzaSyBz3zJ1d-TOXPhpp5t1ZNaKhWai5aVdVpc"; // Reemplaza con tu API Key
+    final String apiKey =
+        "AIzaSyBz3zJ1d-TOXPhpp5t1ZNaKhWai5aVdVpc"; // Reemplaza con tu API Key
     final String url =
         "https://maps.googleapis.com/maps/api/directions/json?origin=${origen.latitude},${origen.longitude}&destination=${destino.latitude},${destino.longitude}&key=$apiKey";
 
@@ -264,9 +250,10 @@ class _RecogerScreenState extends State<RecogerScreen> {
         final polyline = route['overview_polyline']['points'];
 
         final polylinePoints = PolylinePoints().decodePolyline(polyline);
-        final List<LatLng> polylineCoords = polylinePoints
-            .map((point) => LatLng(point.latitude, point.longitude))
-            .toList();
+        final List<LatLng> polylineCoords =
+            polylinePoints
+                .map((point) => LatLng(point.latitude, point.longitude))
+                .toList();
 
         setState(() {
           _polylines = {
@@ -275,7 +262,7 @@ class _RecogerScreenState extends State<RecogerScreen> {
               points: polylineCoords,
               color: Colors.blue,
               width: 5,
-            )
+            ),
           };
 
           distancia = route['legs'][0]['distance']['text'];
@@ -287,64 +274,58 @@ class _RecogerScreenState extends State<RecogerScreen> {
     }
   }
 
-
-
   Future<void> _detailService() async {
     setState(() {
       isLoading = true; // 🔹 Activa la pantalla de carga
     });
 
-    final data = {'id_alquiler': widget.idAlquiler, 'user_id': userId,};
+    final data = {'id_alquiler': widget.idAlquiler, 'user_id': userId};
     try {
-      final response = await http.post(
-        Uri.parse('https://alquilav.com/api/api.php?action=get_detail_service_finish'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(data),
+      final responseData = await ApiService().post(
+        'get_detail_service_finish',
+        data,
       );
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        if (responseData['status'] == 'ok') {
-          final servicio = responseData['servicio'];
-          setState(() {
-            clienteNombre = servicio['nombre'] ?? '';
-            clienteDireccion = servicio['direccion'] ?? '';
-            clienteTelefono = servicio['telefono'] ?? '';
-            tipoLavadora = servicio['type'] ?? '';
-            descripcionLavadora = servicio['codigo'] ?? '';
-            conductorId = servicio['conductor_id'].toString();
-            user_id = servicio['user_id']?.toString() ?? '0';
+      if (responseData['status'] == 'ok') {
+        final servicio = responseData['servicio'];
+        setState(() {
+          clienteNombre = servicio['nombre'] ?? '';
+          clienteDireccion = servicio['direccion'] ?? '';
+          clienteTelefono = servicio['telefono'] ?? '';
+          tipoLavadora = servicio['type'] ?? '';
+          descripcionLavadora = servicio['codigo'] ?? '';
+          conductorId = servicio['conductor_id'].toString();
+          user_id = servicio['user_id']?.toString() ?? '0';
 
-            var fechaInicio = DateTime.parse(servicio['fecha_inicio'].toString());
-            var fechaFin = DateTime.parse(servicio['fecha_fin'].toString());
-            var precio = double.parse(servicio['precio'].toString());
-            print('❌ fechaInicion: ${fechaInicio}');
-            print('❌ fechaFin: ${fechaFin}');
-            print('❌ precio: ${precio}');
+          var fechaInicio = DateTime.parse(servicio['fecha_inicio'].toString());
+          var fechaFin = DateTime.parse(servicio['fecha_fin'].toString());
+          var precio = double.parse(servicio['precio'].toString());
+          print('❌ fechaInicion: ${fechaInicio}');
+          print('❌ fechaFin: ${fechaFin}');
+          print('❌ precio: ${precio}');
 
-            final duracion = fechaFin.difference(fechaInicio).inMinutes;
-            print('❌ duracion: ${duracion}');
+          final duracion = fechaFin.difference(fechaInicio).inMinutes;
+          print('❌ duracion: ${duracion}');
 
-             total = duracion * precio;
-            print('❌ total: ${total}');
-            origen = LatLng(
-              double.tryParse(servicio['lat_delivery'] ?? '0') ?? 0,
-              double.tryParse(servicio['long_delivery'] ?? '0') ?? 0,
-            );
-            destino = LatLng(
-              double.tryParse(servicio['lat_client'] ?? '0') ?? 0,
-              double.tryParse(servicio['long_client'] ?? '0') ?? 0,
-            );
+          total = duracion * precio;
+          print('❌ total: ${total}');
+          origen = LatLng(
+            double.tryParse(servicio['lat_delivery'] ?? '0') ?? 0,
+            double.tryParse(servicio['long_delivery'] ?? '0') ?? 0,
+          );
+          destino = LatLng(
+            double.tryParse(servicio['lat_client'] ?? '0') ?? 0,
+            double.tryParse(servicio['long_client'] ?? '0') ?? 0,
+          );
 
-            if (userId == conductorId && conductorId != '0') {
-              servicioAceptado = true;
-            }
-          });
-          await _getRouteInfo();
-        }
+          if (userId == conductorId && conductorId != '0') {
+            servicioAceptado = true;
+          }
+        });
+        await _getRouteInfo();
       }
     } catch (e) {
       print('Error en la solicitud a la API: $e');
-    }finally {
+    } finally {
       setState(() {
         isLoading = false; // 🔹 Desactiva la pantalla de carga
       });
@@ -356,36 +337,30 @@ class _RecogerScreenState extends State<RecogerScreen> {
       isLoading = true; // 🔹 Activa la pantalla de carga
     });
 
-    final data = {'id_alquiler': widget.idAlquiler, 'user_id': userId, 'total': total};
+    final data = {
+      'id_alquiler': widget.idAlquiler,
+      'user_id': userId,
+      'total': total,
+    };
     print('❌ userId: ${total}');
     try {
-      final response = await http.post(
-        Uri.parse('https://alquilav.com/api/api.php?action=recoger'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(data),
+      await ApiService().post('recoger', data);
+      setState(() {
+        servicioAceptado = true;
+        conductorId = userId;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Lavadora recogida")));
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (Route<dynamic> route) => false,
       );
-      print('📥 Código de respuesta: ${response.statusCode}');
-      print('📥 Respuesta body: ${response.body}'); //
-
-      if (response.statusCode == 200) {
-        setState(() {
-          servicioAceptado = true;
-          conductorId = userId;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Lavadora recogida")),
-        );
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (Route<dynamic> route) => false,
-        );
-
-      }
     } catch (e) {
       print('Error en la solicitud a la API: $e');
-    }finally {
+    } finally {
       setState(() {
         isLoading = false; // 🔹 Desactiva la pantalla de carga
       });
@@ -399,180 +374,222 @@ class _RecogerScreenState extends State<RecogerScreen> {
         title: const Text("Recoger Lavadora"),
         backgroundColor: Colors.indigo,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          // Mapa
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-            child: SizedBox(
-              height: 250,
-              width: double.infinity,
-              child: GoogleMap(
-                onMapCreated: (controller) {
-                  _mapController  = controller;
-                },
-                initialCameraPosition: CameraPosition(
-                  target: origen.latitude == 0 ? const LatLng(7.894769, -72.507820) : origen,
-                  zoom: 14,
-                ),
-                markers: _markers,
-                polylines: _polylines,
-              ),
-            ),
-
-          ),
-          if (distancia.isNotEmpty && duracion.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.directions_car, color: Colors.blue),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          "Distancia: $distancia\nTiempo estimado: $duracion",
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // Contenido
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
                 children: [
-                  Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("📦 Datos del Cliente",
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Text("👤 Nombre: $clienteNombre"),
-                          Text("🏠 Dirección: $clienteDireccion"),
-                          Row(
+                  // Mapa
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                    child: SizedBox(
+                      height: 250,
+                      width: double.infinity,
+                      child: GoogleMap(
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+                        },
+                        initialCameraPosition: CameraPosition(
+                          target:
+                              origen.latitude == 0
+                                  ? const LatLng(7.894769, -72.507820)
+                                  : origen,
+                          zoom: 14,
+                        ),
+                        markers: _markers,
+                        polylines: _polylines,
+                      ),
+                    ),
+                  ),
+                  if (distancia.isNotEmpty && duracion.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
                             children: [
-                              Text("📞 Teléfono: $clienteTelefono"),
-                              const SizedBox(width: 10),
-                              IconButton(
-                                icon: FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green),
-                                onPressed: clienteTelefono.isNotEmpty ? _openWhatsApp : null,
-                                tooltip: 'Contactar por WhatsApp',
+                              const Icon(
+                                Icons.directions_car,
+                                color: Colors.blue,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  "Distancia: $distancia\nTiempo estimado: $duracion",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("🧺 Lavadora Asignada",
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Text("🔧 Tipo: $tipoLavadora"),
-                          Text("📏 Código: $descripcionLavadora"),
-                          Text("💵 Total a cobrar: COP \$${total.toStringAsFixed(2)}")
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Botón Aceptar / Cancelar
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        print("Presionaste el botón");
-                        _recoger();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor:  Colors.indigo,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        "Recoger y cobrar",
-                        style: const TextStyle(fontSize: 16),
-                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
+
+                  // Contenido
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatScreen(
-                              rentalId: widget.idAlquiler,
-                              deliveryId: int.tryParse(user_id) ?? 0,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "📦 Datos del Cliente",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text("👤 Nombre: $clienteNombre"),
+                                  Text("🏠 Dirección: $clienteDireccion"),
+                                  Row(
+                                    children: [
+                                      Text("📞 Teléfono: $clienteTelefono"),
+                                      const SizedBox(width: 10),
+                                      IconButton(
+                                        icon: FaIcon(
+                                          FontAwesomeIcons.whatsapp,
+                                          color: Colors.green,
+                                        ),
+                                        onPressed:
+                                            clienteTelefono.isNotEmpty
+                                                ? _openWhatsApp
+                                                : null,
+                                        tooltip: 'Contactar por WhatsApp',
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Chat",
-                        style: TextStyle(fontSize: 16),
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "🧺 Lavadora Asignada",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text("🔧 Tipo: $tipoLavadora"),
+                                  Text("📏 Código: $descripcionLavadora"),
+                                  Text(
+                                    "💵 Total a cobrar: COP \$${total.toStringAsFixed(2)}",
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
 
+                  // Botón Aceptar / Cancelar
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                print("Presionaste el botón");
+                                _recoger();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.indigo,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                "Recoger y cobrar",
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => ChatScreen(
+                                          rentalId: widget.idAlquiler,
+                                          deliveryId:
+                                              int.tryParse(user_id) ?? 0,
+                                        ),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                "Chat",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

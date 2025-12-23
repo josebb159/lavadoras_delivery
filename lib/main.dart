@@ -20,6 +20,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'providers/auth_provider.dart';
 import 'providers/home_provider.dart';
+import 'providers/solicitudes_provider.dart';
+import 'screens/solicitudes_screen.dart';
+import 'core/theme.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -304,6 +307,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProvider(create: (_) => SolicitudesProvider()),
       ],
       child: const MyApp(),
     ),
@@ -319,9 +323,7 @@ class MyApp extends StatelessWidget {
       navigatorKey:
           navigatorKey, // 👈 Necesario para navegación desde notificaciones
       title: 'Lavadora',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF0090FF)),
-      ),
+      theme: AppTheme.lightTheme, // Aplicar tema Material 3
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
@@ -336,6 +338,18 @@ class MyApp extends StatelessWidget {
         '/mi_cuenta': (context) => MiCuentaScreen(),
         '/recarga': (context) => RecargaScreen(),
         '/lavadora': (context) => MisLavadorasScreen(),
+        '/solicitudes': (context) => const SolicitudesScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/servicio') {
+          final idAlquiler = settings.arguments as String;
+          return MaterialPageRoute(
+            builder:
+                (context) =>
+                    MisServiciosPendiente(idAlquiler: int.parse(idAlquiler)),
+          );
+        }
+        return null;
       },
     );
   }

@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lavadora_app/services/api_service.dart';
+
 class PagosPayUScreen extends StatefulWidget {
-
-
   const PagosPayUScreen() : super();
 
   @override
@@ -24,29 +23,17 @@ class _PagosPayUScreenState extends State<PagosPayUScreen> {
     try {
       print("📡 Consultando pagos PayU del usuario ${user['id']}");
 
-      final response = await http.post(
-        Uri.parse('https://alquilav.com/api/api.php?action=get_pagos_payu'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'id_usuario': user['id']}),
-      );
+      final jsonData = await ApiService().post('get_pagos_payu', {
+        'id_usuario': user['id'],
+      });
 
-      print("📩 Código de respuesta: ${response.statusCode}");
-      print("📩 Body de respuesta: ${response.body}");
-
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-
-        if (jsonData['status'] == 'ok') {
-          setState(() {
-            pagos = jsonData['pagos'] ?? [];
-            isLoading = false;
-          });
-        } else {
-          print("⚠️ Error de API: ${jsonData['message']}");
-          setState(() => isLoading = false);
-        }
+      if (jsonData['status'] == 'ok') {
+        setState(() {
+          pagos = jsonData['pagos'] ?? [];
+          isLoading = false;
+        });
       } else {
-        print("❌ Error en el servidor: ${response.reasonPhrase}");
+        print("⚠️ Error de API: ${jsonData['message']}");
         setState(() => isLoading = false);
       }
     } catch (e, stacktrace) {
@@ -66,31 +53,35 @@ class _PagosPayUScreenState extends State<PagosPayUScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Pagos PayU")),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : pagos.isEmpty
-          ? const Center(child: Text("No tienes pagos registrados en PayU"))
-          : ListView.builder(
-        itemCount: pagos.length,
-        itemBuilder: (context, index) {
-          final pago = pagos[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ListTile(
-              leading: const Icon(Icons.payment, color: Colors.green),
-              title: Text("Referencia: ${pago['reference_code']}"),
-              subtitle: Text(
-                "💲 Valor: ${pago['amount']} ${pago['currency']}\n"
-                    "📌 Estado: ${pago['estado']}\n"
-                    "🔑 Transacción: ${pago['transaction_id'] ?? 'N/A'}\n"
-                    "💳 Método: ${pago['metodo_pago'] ?? 'N/A'}\n"
-                    "📅 Fecha: ${pago['fecha_pago']}",
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : pagos.isEmpty
+              ? const Center(child: Text("No tienes pagos registrados en PayU"))
+              : ListView.builder(
+                itemCount: pagos.length,
+                itemBuilder: (context, index) {
+                  final pago = pagos[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.payment, color: Colors.green),
+                      title: Text("Referencia: ${pago['reference_code']}"),
+                      subtitle: Text(
+                        "💲 Valor: ${pago['amount']} ${pago['currency']}\n"
+                        "📌 Estado: ${pago['estado']}\n"
+                        "🔑 Transacción: ${pago['transaction_id'] ?? 'N/A'}\n"
+                        "💳 Método: ${pago['metodo_pago'] ?? 'N/A'}\n"
+                        "📅 Fecha: ${pago['fecha_pago']}",
+                      ),
+                      isThreeLine: true,
+                    ),
+                  );
+                },
               ),
-              isThreeLine: true,
-            ),
-          );
-        },
-      ),
     );
   }
 }

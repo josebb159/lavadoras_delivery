@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
+import 'package:lavadora_app/services/api_service.dart';
+
 import 'dart:convert';
 
 class MiCuentaScreen extends StatefulWidget {
@@ -41,32 +42,56 @@ class _MiCuentaScreenState extends State<MiCuentaScreen> {
 
   void _mostrarDialogoCambioPassword(BuildContext context) {
     final TextEditingController nuevaPassController = TextEditingController();
-    final TextEditingController confirmarPassController = TextEditingController();
+    final TextEditingController confirmarPassController =
+        TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Cambiar contraseña'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Cambiar contraseña',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nuevaPassController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Nueva contraseña'),
+                decoration: InputDecoration(
+                  labelText: 'Nueva contraseña',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: confirmarPassController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
+                decoration: InputDecoration(
+                  labelText: 'Confirmar contraseña',
+                  prefixIcon: const Icon(Icons.lock),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -75,48 +100,68 @@ class _MiCuentaScreenState extends State<MiCuentaScreen> {
 
                 if (nuevaPass.isEmpty || confirmarPass.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Por favor llena ambos campos')),
+                    const SnackBar(
+                      content: Text('Por favor llena ambos campos'),
+                      backgroundColor: Colors.orange,
+                    ),
                   );
                   return;
                 }
 
                 if (nuevaPass != confirmarPass) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Las contraseñas no coinciden')),
+                    const SnackBar(
+                      content: Text('Las contraseñas no coinciden'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                   return;
                 }
 
                 final data = {
                   'id': user?['id'].toString(),
-                  'password': nuevaPass
+                  'password': nuevaPass,
                 };
 
                 try {
-                  final response = await http.post(
-                    Uri.parse('https://alquilav.com/api/api.php?action=update_password_config'),
-                    headers: {'Content-Type': 'application/json'},
-                    body: json.encode(data),
+                  final responseData = await ApiService().post(
+                    'update_password_config',
+                    data,
                   );
 
-                  final responseData = json.decode(response.body);
-
-                  if (response.statusCode == 200 && responseData['status'] == 'ok') {
+                  if (responseData['status'] == 'ok') {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Contraseña actualizada exitosamente')),
+                      const SnackBar(
+                        content: Text('Contraseña actualizada exitosamente'),
+                        backgroundColor: Colors.green,
+                      ),
                     );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: ${responseData['message'] ?? 'No se pudo cambiar la contraseña'}')),
+                      SnackBar(
+                        content: Text(
+                          'Error: ${responseData['message'] ?? 'No se pudo cambiar la contraseña'}',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al conectar con el servidor: $e')),
+                    SnackBar(
+                      content: Text('Error al conectar con el servidor: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               },
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                backgroundColor: const Color(0xFF0090FF),
+              ),
               child: const Text('Guardar'),
             ),
           ],
@@ -136,40 +181,37 @@ class _MiCuentaScreenState extends State<MiCuentaScreen> {
       };
 
       try {
-        final response = await http.post(
-          Uri.parse('https://alquilav.com/api/api.php?action=edit_user'), // Cambia aquí por tu URL
-          headers: {"Content-Type": "application/json"},
-          body: json.encode(updatedData),
-        );
+        final responseData = await ApiService().post('edit_user', updatedData);
+        if (responseData['status'] == 'ok') {
+          // Actualizar SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          user?['nombre'] = _nombreController.text;
+          user?['apellido'] = _apellidoController.text;
+          user?['telefono'] = _telefonoController.text;
+          user?['direccion'] = _direccionController.text;
+          prefs.setString('user', json.encode(user));
 
-        if (response.statusCode == 200) {
-          final responseData = json.decode(response.body);
-          if (responseData['status'] == 'ok') {
-            // Actualizar SharedPreferences
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            user?['nombre'] = _nombreController.text;
-            user?['apellido'] = _apellidoController.text;
-            user?['telefono'] = _telefonoController.text;
-            user?['direccion'] = _direccionController.text;
-            prefs.setString('user', json.encode(user));
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Datos actualizados correctamente')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: ${responseData['message']}')),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Datos actualizados correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al conectar con el servidor')),
+            SnackBar(
+              content: Text('Error: ${responseData['message']}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       } catch (e) {
         print(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ocurrió un error: $e')),
+          SnackBar(
+            content: Text('Ocurrió un error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -180,66 +222,192 @@ class _MiCuentaScreenState extends State<MiCuentaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Cuenta'),
+        backgroundColor: const Color(0xFF0090FF),
+        elevation: 0,
       ),
-      body: user == null
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                initialValue: user?['correo'] ?? '',
-                decoration: InputDecoration(labelText: 'Correo'),
-                enabled: false,
-              ),
-              TextFormField(
-                controller: _nombreController,
-                decoration: InputDecoration(labelText: 'Nombre'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingresa tu nombre';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _apellidoController,
-                decoration: InputDecoration(labelText: 'Apellido'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingresa tu apellido';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _telefonoController,
-                decoration: InputDecoration(labelText: 'Teléfono'),
-              ),
-              TextFormField(
-                controller: _direccionController,
-                decoration: InputDecoration(labelText: 'Dirección'),
-              ),
+      body:
+          user == null
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Header Section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0090FF),
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(30),
+                          bottomRight: Radius.circular(30),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.white,
+                            child: Text(
+                              (user?['nombre'] ?? 'X')[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0090FF),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "${user?['nombre'] ?? ''} ${user?['apellido'] ?? ''}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            user?['correo'] ?? '',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
-              TextButton(
-                onPressed: () {
-                  _mostrarDialogoCambioPassword(context);
-                },
-                child: const Text(
-                  'Cambiar contraseña',
-                  style: TextStyle(color: Color(0xFF0090FF)),
+                    // Form Section
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 10),
+                            _buildTextField(
+                              controller: _nombreController,
+                              label: 'Nombre',
+                              icon: Icons.person_outline,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu nombre';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _apellidoController,
+                              label: 'Apellido',
+                              icon: Icons.person_outline,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu apellido';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _telefonoController,
+                              label: 'Teléfono',
+                              icon: Icons.phone_android,
+                              keyboardType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _direccionController,
+                              label: 'Dirección',
+                              icon: Icons.location_on_outlined,
+                            ),
+                            const SizedBox(height: 30),
+
+                            // Action Buttons
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _saveChanges,
+                                icon: const Icon(Icons.save),
+                                label: const Text(
+                                  'Guardar cambios',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  backgroundColor: const Color(0xFF0090FF),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  _mostrarDialogoCambioPassword(context);
+                                },
+                                icon: const Icon(Icons.lock_reset),
+                                label: const Text(
+                                  'Cambiar contraseña',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  foregroundColor: const Color(0xFF0090FF),
+                                  side: const BorderSide(
+                                    color: Color(0xFF0090FF),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+    );
+  }
 
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _saveChanges,
-                child: const Text('Guardar cambios'),
-              ),
-            ],
-          ),
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF0090FF)),
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF0090FF), width: 1.5),
         ),
       ),
     );

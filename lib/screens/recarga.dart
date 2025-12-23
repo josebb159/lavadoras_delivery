@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:lavadora_app/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
@@ -34,11 +34,7 @@ class _RecargaScreenState extends State<RecargaScreen> {
 
   Future<void> fetchConfig() async {
     try {
-      final response = await http.post(
-        Uri.parse('https://alquilav.com/api/api.php?action=get_config_general'),
-      );
-
-      final jsonData = json.decode(response.body);
+      final jsonData = await ApiService().post('get_config_general', {});
       if (jsonData['status'] == 'ok') {
         setState(() {
           configData = jsonData['config'];
@@ -60,7 +56,8 @@ class _RecargaScreenState extends State<RecargaScreen> {
 
   /// Generar firma MD5 para PayU
   String generarFirma(String referenceCode, String amount) {
-    final String cadena = "$apiKey~$merchantId~$referenceCode~$amount~$currency";
+    final String cadena =
+        "$apiKey~$merchantId~$referenceCode~$amount~$currency";
     final bytes = convert.utf8.encode(cadena);
     final firma = md5.convert(bytes).toString();
     return firma;
@@ -70,7 +67,10 @@ class _RecargaScreenState extends State<RecargaScreen> {
   Future<void> _abrirEnlace(String url) async {
     try {
       final uri = Uri.parse(url);
-      final canLaunch = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final canLaunch = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
 
       if (!canLaunch) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,9 +78,9 @@ class _RecargaScreenState extends State<RecargaScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al abrir el enlace')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al abrir el enlace')));
     }
   }
 
@@ -89,7 +89,9 @@ class _RecargaScreenState extends State<RecargaScreen> {
 
     if (montoIngresado < 30000) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El valor mínimo de recarga es 30,000 COP')),
+        const SnackBar(
+          content: Text('El valor mínimo de recarga es 30,000 COP'),
+        ),
       );
       return;
     }
@@ -102,7 +104,8 @@ class _RecargaScreenState extends State<RecargaScreen> {
     final userid = user['id'] ?? '0';
 
     // 1️⃣ Crear referencia única
-    final referenceCode = "Recarga-$userid-${DateTime.now().millisecondsSinceEpoch}";
+    final referenceCode =
+        "Recarga-$userid-${DateTime.now().millisecondsSinceEpoch}";
 
     // 2️⃣ Generar firma
     String signature = generarFirma(referenceCode, montoIngresado.toString());
@@ -114,7 +117,8 @@ class _RecargaScreenState extends State<RecargaScreen> {
     final emailPay = configData?['email_pay'] ?? '';
 
     // 4️⃣ Construir URL PayU
-    final payuUrl = "$checkoutUrl"
+    final payuUrl =
+        "$checkoutUrl"
         "?merchantId=$merchantId"
         "&accountId=$accountId"
         "&description=Recarga+de+Saldo"
@@ -136,58 +140,76 @@ class _RecargaScreenState extends State<RecargaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Recargar Saldo")),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : error.isNotEmpty
-          ? Center(child: Text(error))
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Recarga tu saldo",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _montoController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Monto a recargar (mínimo 30,000 COP)",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              child: Padding(
+      body:
+          loading
+              ? const Center(child: CircularProgressIndicator())
+              : error.isNotEmpty
+              ? Center(child: Text(error))
+              : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Método de pago disponible:",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Recarga tu saldo",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _montoController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Monto a recargar (mínimo 30,000 COP)",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
-                    ListTile(
-                      leading: const Icon(Icons.payment, color: Colors.green),
-                      title: const Text("PayU (Sandbox)"),
-                      subtitle: Text("Cuenta: ${configData?['payu_cuenta'] ?? 'N/A'}"),
-                      trailing: ElevatedButton(
-                        onPressed: _iniciarRecarga,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                        child: const Text("Recargar", style: TextStyle(color: Colors.white)),
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Método de pago disponible:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+
+                            ListTile(
+                              leading: const Icon(
+                                Icons.payment,
+                                color: Colors.green,
+                              ),
+                              title: const Text("PayU (Sandbox)"),
+                              subtitle: Text(
+                                "Cuenta: ${configData?['payu_cuenta'] ?? 'N/A'}",
+                              ),
+                              trailing: ElevatedButton(
+                                onPressed: _iniciarRecarga,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                ),
+                                child: const Text(
+                                  "Recargar",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

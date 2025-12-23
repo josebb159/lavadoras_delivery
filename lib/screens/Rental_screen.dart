@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:http/http.dart' as http;
+import 'package:lavadora_app/services/api_service.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +20,7 @@ class _RentalScreenState extends State<RentalScreen> {
   int availableMachines = 0;
   int rentalHours = 1;
   int pricePerHour = 1000;
-  int id_lavadora =0;
+  int id_lavadora = 0;
   late TextEditingController addressController;
   Position? currentPosition;
   late GoogleMapController mapController;
@@ -33,16 +33,10 @@ class _RentalScreenState extends State<RentalScreen> {
 
   Future<void> _checkAvailableMachines() async {
     try {
-      final response = await http.post(
-        Uri.parse('https://alquilav.comhttps://alquilav.com/api/api.php?action=available_machines'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'latitud': currentPosition?.latitude,
-          'longitud': currentPosition?.longitude,
-        }),
-      );
-
-      final responseData = json.decode(response.body);
+      final responseData = await ApiService().post('available_machines', {
+        'latitud': currentPosition?.latitude,
+        'longitud': currentPosition?.longitude,
+      });
       print('Respuesta JSON: $responseData');
       if (responseData['status'] == 'ok') {
         availableMachines = int.parse(responseData['disponibles'].toString());
@@ -55,23 +49,24 @@ class _RentalScreenState extends State<RentalScreen> {
             );
           }
         } else {
-          id_lavadora =  int.parse(responseData['id_lavadora'].toString());
-          pricePerHour =  int.parse(responseData['tarifa'].toString());
+          id_lavadora = int.parse(responseData['id_lavadora'].toString());
+          pricePerHour = int.parse(responseData['tarifa'].toString());
           SharedPreferences prefs = await SharedPreferences.getInstance();
           String? userData = prefs.getString('user');
           if (userData != null) {
             user = json.decode(userData);
-            addressController = TextEditingController(text: user['direccion'] ?? '');
+            addressController = TextEditingController(
+              text: user['direccion'] ?? '',
+            );
             await _getCurrentLocation();
             setState(() {
               isLoading = false;
             });
           }
         }
-      }else if(responseData['status'] == 'error') {
+      } else if (responseData['status'] == 'error') {
         throw Exception(responseData['message']);
-
-      }else {
+      } else {
         throw Exception('Error al consultar disponibilidad');
       }
     } catch (e) {
@@ -82,38 +77,32 @@ class _RentalScreenState extends State<RentalScreen> {
   Future<void> _getCurrentLocation() async {
     // Pedir permisos de ubicación en tiempo de ejecución
 
-
-
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await Geolocator.openLocationSettings();
       return;
     }
 
-    currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    currentPosition = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
   void _rentMachine() async {
     try {
-      final response = await http.post(
-        Uri.parse('https://alquilav.comhttps://alquilav.com/api/api.php?action=rent_machine'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'user_id': user['id'],
-          'tiempo': rentalHours,
-          'direccion': addressController.text,
-          'latitud': currentPosition?.latitude,
-          'longitud': currentPosition?.longitude,
-          'id_lavadora': id_lavadora
-        }),
-      );
-      print('Respuesta cruda: ${response.body}');
-      final responseData = json.decode(response.body);
+      final responseData = await ApiService().post('rent_machine', {
+        'user_id': user['id'],
+        'tiempo': rentalHours,
+        'direccion': addressController.text,
+        'latitud': currentPosition?.latitude,
+        'longitud': currentPosition?.longitude,
+        'id_lavadora': id_lavadora,
+      });
 
       if (responseData['status'] == 'ok') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Alquiler exitoso')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Alquiler exitoso')));
         Navigator.pop(context);
       } else {
         throw Exception('Error al alquilar');
@@ -126,9 +115,7 @@ class _RentalScreenState extends State<RentalScreen> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -142,7 +129,9 @@ class _RentalScreenState extends State<RentalScreen> {
           children: [
             Card(
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: TextField(
@@ -157,37 +146,51 @@ class _RentalScreenState extends State<RentalScreen> {
             const SizedBox(height: 16),
             Card(
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: SizedBox(
                 height: 200,
-                child: currentPosition == null
-                    ? const Center(child: Text('Ubicación no disponible'))
-                    : GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(currentPosition!.latitude, currentPosition!.longitude),
-                    zoom: 16,
-                  ),
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('currentLocation'),
-                      position: LatLng(currentPosition!.latitude, currentPosition!.longitude),
-                    ),
-                  },
-                  onMapCreated: (GoogleMapController controller) {
-                    mapController = controller;
-                  },
-                ),
+                child:
+                    currentPosition == null
+                        ? const Center(child: Text('Ubicación no disponible'))
+                        : GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(
+                              currentPosition!.latitude,
+                              currentPosition!.longitude,
+                            ),
+                            zoom: 16,
+                          ),
+                          markers: {
+                            Marker(
+                              markerId: const MarkerId('currentLocation'),
+                              position: LatLng(
+                                currentPosition!.latitude,
+                                currentPosition!.longitude,
+                              ),
+                            ),
+                          },
+                          onMapCreated: (GoogleMapController controller) {
+                            mapController = controller;
+                          },
+                        ),
               ),
             ),
             const SizedBox(height: 16),
             Card(
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    const Text('Tiempo de alquiler (horas)', style: TextStyle(fontSize: 18)),
+                    const Text(
+                      'Tiempo de alquiler (horas)',
+                      style: TextStyle(fontSize: 18),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -221,7 +224,10 @@ class _RentalScreenState extends State<RentalScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Total: \$${rentalHours * pricePerHour}',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -235,7 +241,9 @@ class _RentalScreenState extends State<RentalScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ],
