@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/lavadora_model.dart';
 import '../services/api_service.dart';
 import '../core/constants.dart';
@@ -24,12 +25,41 @@ class HomeProvider with ChangeNotifier {
         _fetchLavadoras(userId),
         _fetchRecaudado(userId),
         _fetchBanner(),
+        saveFcmToken(userId),
       ]);
     } catch (e) {
       print('Error loading home data: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> saveFcmToken(String userId) async {
+    try {
+      // Get FCM token
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+
+      if (fcmToken == null) {
+        print('⚠️ No se pudo obtener el token FCM');
+        return;
+      }
+
+      print('📱 Token FCM obtenido: $fcmToken');
+
+      // Send token to server
+      final response = await _apiService.post(AppConstants.actionSaveFcm, {
+        'user_id': userId,
+        'token': fcmToken,
+      });
+
+      if (response['status'] == 'ok') {
+        print('✅ Token FCM guardado correctamente en el servidor');
+      } else {
+        print('⚠️ Error al guardar token FCM: ${response['message']}');
+      }
+    } catch (e) {
+      print('❌ Error al guardar token FCM: $e');
     }
   }
 

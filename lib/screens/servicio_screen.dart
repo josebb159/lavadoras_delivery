@@ -3,7 +3,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:lavadora_app/screens/home_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -355,11 +354,8 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
         );
       }
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-        (Route<dynamic> route) => false,
-      );
+      // Reload service details to show updated status
+      await _detailService();
     } catch (e) {
       print("Error en la operación: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -374,6 +370,55 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
     } finally {
       setState(() {
         isLoading = false; // 🔹 Desactiva la pantalla de carga
+      });
+    }
+  }
+
+  Future<void> confirmarEntrega() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final data = {
+        'user_id': int.parse(userId),
+        'id_alquiler': widget.idAlquiler,
+      };
+
+      print('📦 Confirmando entrega con data: $data');
+      final response = await ApiService().post(
+        'confirmar_entrega_lavadora',
+        data,
+      );
+
+      if (response['status'] == 'ok') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Entrega confirmada exitosamente")),
+        );
+
+        // Send notification to client
+        final nombreDomiciliario = user['nombre'] ?? 'Domiciliario';
+        await NotificationService().notificarLavadoraEntregada(
+          clienteId: user_id,
+          nombreDomiciliario: nombreDomiciliario,
+          idAlquiler: widget.idAlquiler,
+        );
+
+        // Reload service details to show updated status
+        await _detailService();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${response['message']}")),
+        );
+      }
+    } catch (e) {
+      print("Error confirmando entrega: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error al confirmar la entrega")),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
       });
     }
   }
@@ -406,11 +451,8 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
           motivoDescripcion: motivoDescripcion,
         );
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (Route<dynamic> route) => false,
-        );
+        // Reload service details to show updated status
+        await _detailService();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1185,6 +1227,119 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
                                 ),
                               ),
                               const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _mostrarModalMotivos,
+                                  icon: const Icon(Icons.cancel, size: 20),
+                                  label: const Text(
+                                    "Cancelar Servicio",
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(
+                                      color: Colors.red,
+                                      width: 2,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ] else if (statusServicio == '6') ...[
+                              // Status 6 - En proceso de entrega (domiciliario va en camino)
+                              // Mostrar botón "Confirmar Entrega"
+                              Row(
+                                children: [
+                                  // Confirmar Entrega Button
+                                  Expanded(
+                                    flex: 2,
+                                    child: ElevatedButton.icon(
+                                      onPressed: confirmarEntrega,
+                                      icon: const Icon(
+                                        Icons.check_circle,
+                                        size: 20,
+                                      ),
+                                      label: const Text(
+                                        "Confirmar Entrega",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Chat Button
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => ChatScreen(
+                                                  rentalId: widget.idAlquiler,
+                                                  deliveryId:
+                                                      int.tryParse(user_id) ??
+                                                      0,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.chat_bubble,
+                                        size: 18,
+                                      ),
+                                      label: const Text(
+                                        "Chat",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF0090FF,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Cancel Button
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(

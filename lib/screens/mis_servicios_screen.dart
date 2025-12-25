@@ -137,6 +137,8 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
         return 'Finalizado';
       case '5':
         return 'Cancelado';
+      case '6':
+        return 'En camino';
       default:
         return 'Desconocido';
     }
@@ -302,7 +304,7 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
               _buildDetailRow(
                 Icons.attach_money,
                 'Valor',
-                '\$${rental['valor_servicio'] ?? '0'}',
+                '\$${rental['total'] ?? '0'}',
               ),
               const SizedBox(height: 12),
               if (rental['metodo_pago'] != null)

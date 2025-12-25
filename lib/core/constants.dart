@@ -25,6 +25,9 @@ class AppConstants {
   // API Actions - Terms
   static const String actionTerminos = 'terminos_delivery';
 
+  // API Actions - Delivery Confirmation
+  static const String actionConfirmarEntrega = 'confirmar_entrega_lavadora';
+
   // Validation Constants
   static const int minPasswordLength = 8;
   static const int minPasswordLengthSimple = 6;
