@@ -16,6 +16,59 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
 
+  int _driverStatus = 0;
+  int get driverStatus => _driverStatus;
+
+  Future<void> checkDriverStatus() async {
+    if (_user == null) return;
+    try {
+      final userIdInt = int.tryParse(_user!.id) ?? 0;
+      if (userIdInt == 0) return;
+
+      final response = await _apiService.getStatusDriver(userIdInt);
+      if (response['status'] == 'ok') {
+        _driverStatus = response['activo'];
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error getting driver status: $e');
+    }
+  }
+
+  Future<bool> toggleDriverStatus(bool isActive) async {
+    if (_user == null) return false;
+    final newStatus = isActive ? 1 : 0;
+
+    // Optimistic update
+    final oldStatus = _driverStatus;
+    _driverStatus = newStatus;
+    notifyListeners();
+
+    try {
+      final userIdInt = int.tryParse(_user!.id) ?? 0;
+      if (userIdInt == 0) {
+        _driverStatus = oldStatus;
+        notifyListeners();
+        return false;
+      }
+
+      final response = await _apiService.changeStatus(userIdInt, newStatus);
+      if (response['status'] == 'ok') {
+        return true;
+      } else {
+        // Revert on failure
+        _driverStatus = oldStatus;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      print('Error toggling driver status: $e');
+      _driverStatus = oldStatus;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> checkSession() async {
     final prefs = await SharedPreferences.getInstance();
     final userData = prefs.getString('user');

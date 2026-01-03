@@ -453,6 +453,38 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
 
         // Reload service details to show updated status
         await _detailService();
+
+        // 🔹 FETCH AND SHOW STRIKES WARNING
+        try {
+          final strikeResponse = await ApiService().getUserStrikes(
+            int.tryParse(userId) ?? 0,
+          );
+          if (strikeResponse['status'] == 'ok') {
+            final strikes = strikeResponse['strikes'];
+            final maxIntentos = strikeResponse['max_intentos'];
+
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder:
+                    (ctx) => AlertDialog(
+                      title: const Text("⚠️ Advertencia"),
+                      content: Text(
+                        "Has realizado $strikes cancelaciones. Despues de $maxIntentos cancelaciones la cuenta sera bloqueada.",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text("Entendido"),
+                        ),
+                      ],
+                    ),
+              );
+            }
+          }
+        } catch (e) {
+          print("Error fetching strikes: $e");
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1227,33 +1259,7 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: _mostrarModalMotivos,
-                                  icon: const Icon(Icons.cancel, size: 20),
-                                  label: const Text(
-                                    "Cancelar Servicio",
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(
-                                      color: Colors.red,
-                                      width: 2,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              const SizedBox.shrink(),
                             ] else if (statusServicio == '6') ...[
                               // Status 6 - En proceso de entrega (domiciliario va en camino)
                               // Mostrar botón "Confirmar Entrega"
@@ -1339,7 +1345,7 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              // Cancel Button
+                              const SizedBox(height: 12),
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
@@ -1458,38 +1464,7 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
                                   ),
                                 ],
                               ),
-                              // Cancel Button (only for status 1, not 3 or 4)
-                              if (statusServicio != '3' &&
-                                  statusServicio != '4') ...[
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _mostrarModalMotivos,
-                                    icon: const Icon(Icons.cancel, size: 20),
-                                    label: const Text(
-                                      "Cancelar Servicio",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      side: const BorderSide(
-                                        color: Colors.red,
-                                        width: 2,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              const SizedBox.shrink(),
                             ],
                           ] else ...[
                             // Accept Button (when not accepted yet)

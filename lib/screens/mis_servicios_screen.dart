@@ -39,6 +39,13 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
       if (responseData['status'] == 'ok') {
         List rentals = responseData['rentals'];
         activeRentals = rentals.toList();
+
+        // Ordenar por ID descendente (más recientes primero)
+        activeRentals.sort((a, b) {
+          int idA = int.tryParse(a['id'].toString()) ?? 0;
+          int idB = int.tryParse(b['id'].toString()) ?? 0;
+          return idB.compareTo(idA); // Orden descendente
+        });
       }
     } catch (e) {
       print('Error al obtener los detalles del alquiler: $e');
@@ -59,69 +66,6 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
       '/servicio',
       arguments: rental['id'].toString(),
     );
-  }
-
-  void _cancelService(dynamic rental) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text('Cancelar Servicio'),
-            content: const Text(
-              '¿Estás seguro de que deseas cancelar este servicio?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('No'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Sí, Cancelar'),
-              ),
-            ],
-          ),
-    );
-
-    if (confirmed == true) {
-      try {
-        final response = await ApiService().post('cancelar_servicio', {
-          'user_id': user['id'],
-          'id_alquiler': rental['id'],
-          'motivo': '1', // Motivo genérico
-        });
-
-        if (!mounted) return;
-
-        if (response['status'] == 'ok') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Servicio cancelado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _getActiveRental(); // Refresh list
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '⚠️ ${response['message'] ?? 'No se pudo cancelar'}',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 
   String _getStatusText(dynamic rental) {
@@ -160,12 +104,6 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
       default:
         return Colors.grey;
     }
-  }
-
-  bool _canCancel(dynamic rental) {
-    final status = rental['status_servicio']?.toString() ?? '1';
-    // Can cancel if status is 1 (Pending) or 2 (In Progress)
-    return status == '1' || status == '2';
   }
 
   @override
@@ -219,7 +157,12 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
   Widget _buildServiceCard(dynamic rental) {
     final statusColor = _getStatusColor(rental);
     final statusText = _getStatusText(rental);
-    final canCancel = _canCancel(rental);
+
+    // Calcular valores
+    final tiempoAlquiler =
+        int.tryParse(rental['tiempo_alquiler']?.toString() ?? '0') ?? 0;
+    final total = double.tryParse(rental['total']?.toString() ?? '0') ?? 0;
+    final valorPorHora = tiempoAlquiler > 0 ? total / tiempoAlquiler : 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -228,13 +171,13 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
       child: InkWell(
         onTap: () => _navigateToDetail(rental),
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with Status
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with Status
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
@@ -268,58 +211,167 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+            ),
 
-              // Service Details
-              _buildDetailRow(
-                Icons.calendar_today,
-                'Fecha Inicio',
-                rental['start_time'] ?? 'N/A',
-              ),
-              const SizedBox(height: 12),
-              if (rental['fecha_fin'] != null &&
-                  rental['fecha_fin'].toString().isNotEmpty) ...[
-                _buildDetailRow(
-                  Icons.event_available,
-                  'Fecha Fin',
-                  rental['fecha_fin'],
+            // Pricing Section - Highlighted
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF0090FF).withOpacity(0.1),
+                    const Color(0xFF0090FF).withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                const SizedBox(height: 12),
-              ],
-              _buildDetailRow(
-                Icons.timer,
-                'Tiempo',
-                '${rental['tiempo_alquiler'] ?? '0'} horas',
-              ),
-              const SizedBox(height: 12),
-              if (rental['tipo_lavadora'] != null &&
-                  rental['tipo_lavadora'].toString().isNotEmpty) ...[
-                _buildDetailRow(
-                  Icons.local_laundry_service,
-                  'Tipo',
-                  rental['tipo_lavadora'],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF0090FF).withOpacity(0.3),
+                  width: 1,
                 ),
-                const SizedBox(height: 12),
-              ],
-              _buildDetailRow(
-                Icons.attach_money,
-                'Valor',
-                '\$${rental['total'] ?? '0'}',
               ),
-              const SizedBox(height: 12),
-              if (rental['metodo_pago'] != null)
-                _buildDetailRow(
-                  Icons.payment,
-                  'Pago',
-                  rental['metodo_pago'].toString().toUpperCase(),
-                ),
+              child: Column(
+                children: [
+                  // Valor por hora
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.monetization_on,
+                            size: 20,
+                            color: Colors.grey[700],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Valor por hora:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '\$${valorPorHora.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0090FF),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  // Cálculo: tiempo × valor
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calculate,
+                            size: 20,
+                            color: Colors.grey[700],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$tiempoAlquiler hrs × \$${valorPorHora.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0090FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '\$${total.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
+            // Service Details
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  _buildDetailRow(
+                    Icons.calendar_today,
+                    'Fecha Inicio',
+                    rental['start_time'] ?? 'N/A',
+                  ),
+                  const SizedBox(height: 12),
+                  if (rental['fecha_fin'] != null &&
+                      rental['fecha_fin'].toString().isNotEmpty) ...[
+                    _buildDetailRow(
+                      Icons.event_available,
+                      'Fecha Fin',
+                      rental['fecha_fin'],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _buildDetailRow(
+                    Icons.timer,
+                    'Tiempo',
+                    '$tiempoAlquiler horas',
+                  ),
+                  const SizedBox(height: 12),
+                  if (rental['tipo_lavadora'] != null &&
+                      rental['tipo_lavadora'].toString().isNotEmpty) ...[
+                    _buildDetailRow(
+                      Icons.local_laundry_service,
+                      'Tipo',
+                      rental['tipo_lavadora'],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (rental['metodo_pago'] != null)
+                    _buildDetailRow(
+                      Icons.payment,
+                      'Pago',
+                      rental['metodo_pago'].toString().toUpperCase(),
+                    ),
+                ],
+              ),
+            ),
 
-              // Action Buttons
-              Row(
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(),
+            ),
+            const SizedBox(height: 8),
+
+            // Action Buttons
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
@@ -335,27 +387,10 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
                       ),
                     ),
                   ),
-                  if (canCancel) ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _cancelService(rental),
-                        icon: const Icon(Icons.cancel),
-                        label: const Text('Cancelar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -12,6 +12,8 @@ class SolicitudesScreen extends StatefulWidget {
 }
 
 class _SolicitudesScreenState extends State<SolicitudesScreen> {
+  bool _isSwitchLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +26,7 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> {
 
       if (authProvider.user != null) {
         solicitudesProvider.startPolling(authProvider.user!.id);
+        authProvider.checkDriverStatus();
       }
     });
   }
@@ -123,6 +126,52 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> {
         backgroundColor: const Color(0xFF0090FF),
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          Consumer<AuthProvider>(
+            builder: (context, auth, child) {
+              return Row(
+                children: [
+                  Text(
+                    auth.driverStatus == 1 ? 'En servicio' : 'En reposo',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  if (_isSwitchLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    )
+                  else
+                    Switch(
+                      value: auth.driverStatus == 1,
+                      activeColor: Colors.white,
+                      activeTrackColor: Colors.lightGreenAccent,
+                      inactiveThumbColor: Colors.grey,
+                      inactiveTrackColor: Colors.grey[300],
+                      onChanged: (value) async {
+                        setState(() {
+                          _isSwitchLoading = true;
+                        });
+                        await auth.toggleDriverStatus(value);
+                        if (mounted) {
+                          setState(() {
+                            _isSwitchLoading = false;
+                          });
+                        }
+                      },
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [

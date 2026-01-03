@@ -91,4 +91,23 @@ class ApiService {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> changeStatus(int userId, int status) async {
+    return await post('change_status', {'user_id': userId, 'activo': status});
+  }
+
+  Future<Map<String, dynamic>> getStatusDriver(int userId) async {
+    return await post('get_status_driver', {'user_id': userId});
+  }
+
+  Future<Map<String, dynamic>> getUserStrikes(int userId) async {
+    return await post('get_user_strikes', {'user_id': userId});
+  }
+
+  Future<Map<String, dynamic>> markChatRead(int rentalId, String sender) async {
+    return await post('mark_chat_read', {
+      'id_alquiler': rentalId,
+      'remitente': sender,
+    });
+  }
 }

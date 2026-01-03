@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       authProvider.checkSession().then((_) {
         if (authProvider.isAuthenticated) {
-          Navigator.pushReplacementNamed(context, '/home');
+          Navigator.pushReplacementNamed(context, '/permissions');
         }
       });
     });
@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/permissions');
     } else {
       _showError('Correo o contraseña incorrectos.');
     }
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/permissions');
     } else {
       _showError('Error al iniciar sesión con Google.');
     }

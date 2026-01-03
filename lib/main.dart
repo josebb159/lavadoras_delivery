@@ -12,6 +12,8 @@ import 'screens/recarga.dart';
 import 'screens/pagos_screen.dart';
 import 'screens/pagos_payu_screen.dart';
 import 'screens/lavadoras.dart';
+import 'screens/chat.dart';
+import 'screens/permissions_check_screen.dart';
 import 'package:workmanager/workmanager.dart';
 import 'lib/background_tasks.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -43,6 +45,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
   print("📦 Mensaje en segundo plano: ${message.data}");
+  print("📦 Notification: ${message.notification?.toMap()}");
 
   final action = message.data['type'] ?? '';
   final idServicio = message.data['id_servicio'] ?? '';
@@ -68,6 +71,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     case 'logout':
       title = "Sesión finalizada";
       body = "Se cerró tu sesión por seguridad.";
+      break;
+
+    case 'mensaje':
+      // 🔹 Usar el título y cuerpo del mensaje FCM original
+      title = message.notification?.title ?? "Nuevo Mensaje";
+      body =
+          message.notification?.body ?? "Tienes un nuevo mensaje del cliente.";
+      break;
+
+    case 'add_time':
+      // 🔹 Usar el título y cuerpo del mensaje FCM original
+      title = message.notification?.title ?? "⏰ Tiempo Adicional Solicitado";
+      body =
+          message.notification?.body ??
+          "El cliente ha solicitado 1 hora adicional de servicio.";
       break;
 
     default:
@@ -130,6 +148,16 @@ Future<void> main() async {
             '/login',
             (r) => false,
           );
+        } else if (action == 'mensaje' && id != null) {
+          navigatorKey.currentState?.pushNamed(
+            '/chat',
+            arguments: {
+              'rentalId': int.tryParse(id) ?? 0,
+              'deliveryId': 0, // Se buscará en ChatScreen
+            },
+          );
+        } else if (action == 'add_time' && id != null) {
+          navigatorKey.currentState?.pushNamed('/servicio', arguments: id);
         }
       }
     },
@@ -145,6 +173,8 @@ Future<void> main() async {
   // ✅ Notificación recibida en foreground
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
     print("📩 Notificación recibida: ${message.data}");
+    print("📩 Notification title: ${message.notification?.title}");
+    print("📩 Notification body: ${message.notification?.body}");
 
     final action = message.data['type'];
     final userId = message.data['user_id'];
@@ -246,6 +276,72 @@ Future<void> main() async {
           }
           break;
 
+        case 'mensaje':
+          // 🔹 Usar el título y cuerpo del mensaje FCM original
+          title = message.notification?.title ?? "Nuevo Mensaje";
+          body =
+              message.notification?.body ??
+              "Tienes un nuevo mensaje del cliente.";
+          // ⚡ Aviso dentro de la app
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("📩 $body"),
+                duration: Duration(seconds: 4),
+                backgroundColor: Colors.blueAccent,
+                action: SnackBarAction(
+                  label: 'Ver',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    navigatorKey.currentState?.pushNamed(
+                      '/chat',
+                      arguments: {
+                        'rentalId':
+                            int.tryParse(
+                              message.data['id_servicio'].toString(),
+                            ) ??
+                            0,
+                        'deliveryId': 0,
+                      },
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+          break;
+
+        case 'add_time':
+          // 🔹 Usar el título y cuerpo del mensaje FCM original
+          title =
+              message.notification?.title ?? "⏰ Tiempo Adicional Solicitado";
+          body =
+              message.notification?.body ??
+              "El cliente ha solicitado 1 hora adicional de servicio.";
+          // ⚡ Aviso dentro de la app
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("⏰ $body"),
+                duration: Duration(seconds: 5),
+                backgroundColor: Colors.orange,
+                action: SnackBarAction(
+                  label: 'Ver',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    navigatorKey.currentState?.pushNamed(
+                      '/servicio',
+                      arguments: message.data['id_servicio'].toString(),
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+          break;
+
         case 'open_mis_servicios':
           navigatorKey.currentState?.pushNamed('/mis_servicios');
           break;
@@ -275,7 +371,8 @@ Future<void> main() async {
             icon: '@mipmap/ic_launcher',
           ),
         ),
-        payload: "type=$action",
+        payload:
+            "type=$action&id_servicio=${message.data['id_servicio'] ?? ''}",
       );
     }
   });
@@ -284,9 +381,20 @@ Future<void> main() async {
   final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     final id = initialMessage.data['id_servicio'];
+    final type = initialMessage.data['type'];
     if (id != null) {
       Future.delayed(Duration.zero, () {
-        navigatorKey.currentState?.pushNamed('/mis_servicios');
+        if (type == 'mensaje') {
+          navigatorKey.currentState?.pushNamed(
+            '/chat',
+            arguments: {
+              'rentalId': int.tryParse(id.toString()) ?? 0,
+              'deliveryId': 0,
+            },
+          );
+        } else {
+          navigatorKey.currentState?.pushNamed('/mis_servicios');
+        }
       });
     }
   }
@@ -294,8 +402,24 @@ Future<void> main() async {
   // ✅ App abierta desde background
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
     final id = message.data['id_servicio'];
+    final type = message.data['type'];
     if (id != null) {
-      navigatorKey.currentState?.pushNamed('/mis_servicios');
+      if (type == 'mensaje') {
+        navigatorKey.currentState?.pushNamed(
+          '/chat',
+          arguments: {
+            'rentalId': int.tryParse(id.toString()) ?? 0,
+            'deliveryId': 0,
+          },
+        );
+      } else if (type == 'add_time') {
+        navigatorKey.currentState?.pushNamed(
+          '/servicio',
+          arguments: id.toString(),
+        );
+      } else {
+        navigatorKey.currentState?.pushNamed('/mis_servicios');
+      }
     }
   });
 
@@ -329,6 +453,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => LoginScreen(),
         '/login': (context) => LoginScreen(),
+        '/permissions': (context) => const PermissionsCheckScreen(),
         '/home': (context) => HomeScreen(key: homeScreenKey),
         '/register': (context) => RegisterScreen(),
         '/pagos': (context) => PagosScreen(),
@@ -347,6 +472,15 @@ class MyApp extends StatelessWidget {
             builder:
                 (context) =>
                     MisServiciosPendiente(idAlquiler: int.parse(idAlquiler)),
+          );
+        } else if (settings.name == '/chat') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder:
+                (context) => ChatScreen(
+                  rentalId: args['rentalId'],
+                  deliveryId: args['deliveryId'] ?? 0,
+                ),
           );
         }
         return null;

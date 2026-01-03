@@ -19,8 +19,8 @@ android {
         applicationId = "com.lavadora.appdelivery"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 7
-        versionName = "4.3"
+        versionCode = 9
+        versionName = "4.5"
     }
 
     signingConfigs {

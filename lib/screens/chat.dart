@@ -22,9 +22,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? user;
   Timer? _pollingTimer;
   bool isLoading = false;
+  int clientId = 0; // 🔹 ID del cliente (destinatario)
+
   @override
   void initState() {
     super.initState();
+    clientId = widget.deliveryId; // Inicializar con el valor del widget
     _loadUser();
     getChatMessages();
     _startPolling();
@@ -44,6 +47,28 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         user = json.decode(userData);
       });
+
+      // 🔹 Si no tenemos el ID del cliente (ej. notificación), lo buscamos
+      if (clientId == 0) {
+        _fetchRentalInfo();
+      }
+    }
+  }
+
+  // Obtener info del alquiler para saber el ID del cliente
+  Future<void> _fetchRentalInfo() async {
+    try {
+      final data = {'id_alquiler': widget.rentalId, 'user_id': user!['id']};
+      final response = await ApiService().post('get_detail_service', data);
+      if (response['status'] == 'ok') {
+        final servicio = response['servicio'];
+        setState(() {
+          clientId = int.tryParse(servicio['user_id'].toString()) ?? 0;
+        });
+        print("✅ Cliente ID recuperado: $clientId");
+      }
+    } catch (e) {
+      print("❌ Error recuperando info del alquiler: $e");
     }
   }
 
@@ -74,6 +99,9 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           chatMessages = mensajes;
         });
+
+        // Marcar mensajes como leídos
+        ApiService().markChatRead(widget.rentalId, 'domiciliario');
       } else {
         print("⚠️ Respuesta de API con error: ${jsonData['status']}");
       }
@@ -97,7 +125,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final payload = {
         'id_alquiler': widget.rentalId,
-        'id_usuario': widget.deliveryId,
+        'id_usuario': clientId, // 🔹 Usar clientId dinámico
         'id_domiciliario': user!['id'],
         'mensaje': mensaje,
         'tipo': 'domiciliario', // siempre usuario desde la app cliente
@@ -153,9 +181,32 @@ class _ChatScreenState extends State<ChatScreen> {
                                   isUser ? Colors.blue[200] : Colors.grey[300],
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text(
-                              msg['mensaje'],
-                              style: TextStyle(fontSize: 16),
+                            child: Column(
+                              crossAxisAlignment:
+                                  isUser
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  msg['mensaje'],
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                if (isUser) ...[
+                                  SizedBox(height: 4),
+                                  Icon(
+                                    Icons.done_all,
+                                    size: 16,
+                                    color:
+                                        (int.tryParse(
+                                                      msg['leido'].toString(),
+                                                    ) ??
+                                                    0) ==
+                                                1
+                                            ? Colors.blue
+                                            : Colors.grey,
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         );
