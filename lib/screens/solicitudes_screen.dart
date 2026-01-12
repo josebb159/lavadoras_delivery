@@ -118,6 +118,21 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> {
     }
   }
 
+  String _getTipoServicio(String tariffType) {
+    switch (tariffType.toLowerCase()) {
+      case 'normal':
+        return 'Normal';
+      case '24_hours':
+      case '24horas':
+        return '24 Horas';
+      case 'nocturnal':
+      case 'nocturno':
+        return 'Nocturno';
+      default:
+        return 'Normal';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -368,7 +383,7 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> {
             _buildDetailRow(
               Icons.access_time,
               'Tiempo',
-              '${solicitud.tiempoAlquiler} horas',
+              '${solicitud.tiempoAlquiler} horas (${_getTipoServicio(solicitud.tariffType)})',
             ),
             const SizedBox(height: 8),
             _buildDetailRow(

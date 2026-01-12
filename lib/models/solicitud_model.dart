@@ -13,6 +13,7 @@ class Solicitud {
   final double total;
   final String metodoPago;
   final String fechaInicio;
+  final String tariffType; // Tipo de tarifa: normal, 24_hours, nocturnal
   final double? distanciaKm; // Distance from API or calculated
 
   Solicitud({
@@ -28,6 +29,7 @@ class Solicitud {
     required this.total,
     required this.metodoPago,
     required this.fechaInicio,
+    this.tariffType = 'normal',
     this.distanciaKm,
   });
 
@@ -50,6 +52,7 @@ class Solicitud {
       total: double.tryParse(json['total'].toString()) ?? 0.0,
       metodoPago: json['metodo_pago'] ?? 'efectivo',
       fechaInicio: json['fecha_inicio'] ?? '',
+      tariffType: json['tariff_type'] ?? 'normal',
       distanciaKm: double.tryParse(json['distancia_km']?.toString() ?? ''),
     );
   }
@@ -68,6 +71,7 @@ class Solicitud {
       'total': total,
       'metodo_pago': metodoPago,
       'fecha_inicio': fechaInicio,
+      'tariff_type': tariffType,
       if (distanciaKm != null) 'distancia_km': distanciaKm,
     };
   }

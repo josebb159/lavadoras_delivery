@@ -14,6 +14,8 @@ import 'screens/pagos_payu_screen.dart';
 import 'screens/lavadoras.dart';
 import 'screens/chat.dart';
 import 'screens/permissions_check_screen.dart';
+import 'screens/UsuarioBloqueadoScreen.dart';
+import 'screens/soporte_screen.dart';
 import 'package:workmanager/workmanager.dart';
 import 'lib/background_tasks.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -464,6 +466,8 @@ class MyApp extends StatelessWidget {
         '/recarga': (context) => RecargaScreen(),
         '/lavadora': (context) => MisLavadorasScreen(),
         '/solicitudes': (context) => const SolicitudesScreen(),
+        '/usuario_bloqueado': (context) => const UsuarioBloqueadoScreen(),
+        '/soporte': (context) => const SoporteScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/servicio') {

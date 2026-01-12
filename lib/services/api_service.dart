@@ -104,10 +104,22 @@ class ApiService {
     return await post('get_user_strikes', {'user_id': userId});
   }
 
+  Future<Map<String, dynamic>> checkUserBanStatus(int userId) async {
+    return await post('check_user_ban', {'user_id': userId});
+  }
+
+  Future<Map<String, dynamic>> getValorMinimo() async {
+    return await post('get_valor_minimo', {});
+  }
+
   Future<Map<String, dynamic>> markChatRead(int rentalId, String sender) async {
     return await post('mark_chat_read', {
       'id_alquiler': rentalId,
       'remitente': sender,
     });
+  }
+
+  Future<Map<String, dynamic>> getContactoSoporte() async {
+    return await post('get_contacto_soporte', {});
   }
 }

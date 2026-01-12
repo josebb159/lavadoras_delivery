@@ -18,6 +18,9 @@ class HomeScreen extends StatefulWidget {
 
 class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _locationTimer;
+  Timer? _banCheckTimer;
+  double _valorMinimo = 0;
+  bool _showLowBalanceWarning = false;
 
   @override
   void initState() {
@@ -26,11 +29,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadData();
     _startLocationUpdates();
     _startSolicitudesPolling();
+    _startBanCheckPolling();
+    _checkMinimumBalance();
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _banCheckTimer?.cancel();
     Provider.of<SolicitudesProvider>(context, listen: false).stopPolling();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -76,6 +82,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _onRefresh() async {
     _loadData();
+    await _checkMinimumBalance();
   }
 
   void _startLocationUpdates() {
@@ -130,6 +137,103 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       print('Error enviando ubicación: $e');
+    }
+  }
+
+  void _startBanCheckPolling() {
+    // Check immediately
+    _checkBanStatus();
+    // Then every 5 minutes
+    _banCheckTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      _checkBanStatus();
+    });
+  }
+
+  Future<void> _checkBanStatus() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+
+      if (user == null) return;
+
+      final userId = int.tryParse(user.id) ?? 0;
+      if (userId == 0) return;
+
+      final response = await ApiService().checkUserBanStatus(userId);
+
+      if (response['status'] == 'ok') {
+        final isBanned = response['banned'] == true || response['banned'] == 1;
+
+        if (isBanned) {
+          print('⚠️ Usuario bloqueado detectado, redirigiendo...');
+          // Cancel timers before navigation
+          _locationTimer?.cancel();
+          _banCheckTimer?.cancel();
+
+          // Navigate to blocked user screen
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/usuario_bloqueado');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error verificando estado de bloqueo: $e');
+    }
+  }
+
+  Future<void> _checkMinimumBalance() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final homeProvider = Provider.of<HomeProvider>(context, listen: false);
+      final user = authProvider.user;
+
+      if (user == null) return;
+
+      // Get minimum value from config
+      final configResponse = await ApiService().getValorMinimo();
+
+      print('🔍 DEBUG - Respuesta del API get_valor_minimo:');
+      print('   Status: ${configResponse['status']}');
+      print('   valor_minimo (raw): ${configResponse['valor_minimo']}');
+      print(
+        '   valor_minimo (type): ${configResponse['valor_minimo'].runtimeType}',
+      );
+
+      if (configResponse['status'] == 'ok') {
+        _valorMinimo =
+            double.tryParse(
+              configResponse['valor_minimo']?.toString() ?? '0',
+            ) ??
+            0;
+
+        // Get current balance
+        final valorRecaudadoString = homeProvider.valorRecaudado;
+        final valorRecaudado = double.tryParse(valorRecaudadoString) ?? 0;
+
+        print('🔍 DEBUG - Valores de comparación:');
+        print('   valorRecaudado (string): "$valorRecaudadoString"');
+        print('   valorRecaudado (double): $valorRecaudado');
+        print('   valorRecaudado (type): ${valorRecaudado.runtimeType}');
+        print('   _valorMinimo (double): $_valorMinimo');
+        print('   _valorMinimo (type): ${_valorMinimo.runtimeType}');
+        print(
+          '   Comparación (valorRecaudado < _valorMinimo): ${valorRecaudado < _valorMinimo}',
+        );
+        print('   Diferencia: ${valorRecaudado - _valorMinimo}');
+
+        // Check if balance is below minimum
+        setState(() {
+          _showLowBalanceWarning = valorRecaudado < _valorMinimo;
+        });
+
+        if (_showLowBalanceWarning) {
+          print('⚠️ Saldo insuficiente: \$$valorRecaudado < \$$_valorMinimo');
+        } else {
+          print('✅ Saldo suficiente: \$$valorRecaudado >= \$$_valorMinimo');
+        }
+      }
+    } catch (e) {
+      print('Error verificando saldo mínimo: $e');
     }
   }
 
@@ -196,6 +300,11 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             icon: Icons.person,
             title: 'Mi Cuenta',
             route: '/mi_cuenta',
+          ),
+          _buildDrawerItem(
+            icon: Icons.support_agent,
+            title: 'Soporte',
+            route: '/soporte',
           ),
           const Divider(),
           ListTile(
@@ -343,90 +452,72 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
+      elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Leading Icon
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.local_laundry_service,
-                size: 32,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Middle Content (Title + Details)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Lavadora ${lavadora.codigo}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lavadora.descripcion,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Código: ${lavadora.codigo}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                  // Show client if rented
-                  if (isAlquilada && lavadora.clienteActual != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 14, color: Colors.orange[700]),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'Cliente: ${lavadora.clienteActual}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange[700],
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor.withOpacity(0.1),
+                  Theme.of(context).primaryColor.withOpacity(0.05),
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
             ),
-
-            const SizedBox(width: 8),
-
-            // Trailing Content (Price + Status)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Row(
               children: [
-                Text(
-                  '\$${lavadora.precio}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                // Icon
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.local_laundry_service,
+                    size: 28,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(width: 12),
+
+                // Title and Type
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lavadora.codigo,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0090FF),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        lavadora.descripcion,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Status Badge
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -440,23 +531,163 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           isDisponible
                               ? Colors.green[300]!
                               : Colors.orange[300]!,
-                      width: 1,
+                      width: 1.5,
                     ),
                   ),
                   child: Text(
-                    lavadora.estado,
+                    lavadora.estado.toUpperCase(),
                     style: TextStyle(
                       color:
                           isDisponible ? Colors.green[800] : Colors.orange[800],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // Client Info (if rented)
+          if (isAlquilada && lavadora.clienteActual != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.person, size: 18, color: Colors.orange[700]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Cliente: ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      lavadora.clienteActual!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange[800],
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Pricing Section
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.attach_money, size: 18, color: Colors.grey[700]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tarifas de Servicio',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Pricing Grid
+                Row(
+                  children: [
+                    // Normal Price
+                    Expanded(
+                      child: _buildPriceItem(
+                        'Normal',
+                        lavadora.precioNormal,
+                        Icons.wb_sunny_outlined,
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 24 Hours Price
+                    Expanded(
+                      child: _buildPriceItem(
+                        '24 Horas',
+                        lavadora.precio24Horas,
+                        Icons.access_time,
+                        Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Nocturnal Price
+                    Expanded(
+                      child: _buildPriceItem(
+                        'Nocturno',
+                        lavadora.precioNocturno,
+                        Icons.nightlight_round,
+                        Colors.purple,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceItem(
+    String label,
+    double price,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '\$${price.toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -555,6 +786,95 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: ListView(
               children: [
                 _buildBanner(homeProvider.bannerUrl),
+
+                // Low Balance Warning Banner
+                if (_showLowBalanceWarning)
+                  Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.orange[700]!, Colors.orange[600]!],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '⚠️ Saldo Insuficiente',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Necesitas al menos \$${_valorMinimo.toStringAsFixed(0)} para aceptar servicios',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                () => Navigator.pushNamed(context, '/recarga'),
+                            icon: const Icon(Icons.account_balance_wallet),
+                            label: const Text('Recargar Ahora'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.orange[700],
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 _buildBalanceCard(homeProvider.valorRecaudado),
                 const SizedBox(height: 8),
                 if (homeProvider.lavadoras.isEmpty)

@@ -37,6 +37,8 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
   bool servicioAceptado = false;
   String statusServicio = '1'; // Track service status
   String valorServicio = '0'; // Service total amount
+  String calificacion = ''; // Service rating
+  String comentarioCalificacion = ''; // Service comment
   Set<Polyline> _polylines = {};
   String distancia = "";
   String duracion = "";
@@ -655,6 +657,9 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
           conductorId = servicio['conductor_id']?.toString() ?? '0';
           user_id = servicio['user_id']?.toString() ?? '0';
           valorServicio = servicio['valor_servicio']?.toString() ?? '0';
+          calificacion = servicio['calificacion']?.toString() ?? '';
+          comentarioCalificacion =
+              servicio['comentario_calificacion']?.toString() ?? '';
 
           // Get and store service status
           statusServicio = servicio['status_servicio']?.toString() ?? '1';
@@ -1498,8 +1503,6 @@ class _MisServiciosPendienteState extends State<MisServiciosPendiente> {
                       ),
                     ),
                   ),
-
-                  // Botón Aceptar / Cancelar
                 ],
               ),
     );

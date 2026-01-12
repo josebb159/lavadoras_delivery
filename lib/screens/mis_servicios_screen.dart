@@ -106,6 +106,21 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
     }
   }
 
+  String _getTipoServicio(String tariffType) {
+    switch (tariffType.toLowerCase()) {
+      case 'normal':
+        return 'Normal';
+      case '24_hours':
+      case '24horas':
+        return '24 Horas';
+      case 'nocturnal':
+      case 'nocturno':
+        return 'Nocturno';
+      default:
+        return 'Normal';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,7 +177,9 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
     final tiempoAlquiler =
         int.tryParse(rental['tiempo_alquiler']?.toString() ?? '0') ?? 0;
     final total = double.tryParse(rental['total']?.toString() ?? '0') ?? 0;
-    final valorPorHora = tiempoAlquiler > 0 ? total / tiempoAlquiler : 0;
+    // Usar valor_servicio del endpoint en lugar de calcular
+    final valorPorHora =
+        double.tryParse(rental['valor_servicio']?.toString() ?? '0') ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -339,7 +356,7 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
                   _buildDetailRow(
                     Icons.timer,
                     'Tiempo',
-                    '$tiempoAlquiler horas',
+                    '$tiempoAlquiler horas (${_getTipoServicio(rental['tariff_type']?.toString() ?? 'normal')})',
                   ),
                   const SizedBox(height: 12),
                   if (rental['tipo_lavadora'] != null &&
@@ -360,6 +377,107 @@ class _MisServiciosScreenState extends State<MisServiciosScreen> {
                 ],
               ),
             ),
+
+            // Rating and Comment Section
+            if (rental['calificacion'] != null &&
+                rental['calificacion'].toString().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.amber.withOpacity(0.1),
+                        Colors.amber.withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.amber.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.star, size: 20, color: Colors.amber[700]),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Calificación del Servicio',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[900],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          ...List.generate(5, (index) {
+                            final rating =
+                                double.tryParse(
+                                  rental['calificacion'].toString(),
+                                ) ??
+                                0;
+                            return Icon(
+                              index < rating ? Icons.star : Icons.star_border,
+                              color: Colors.amber[700],
+                              size: 24,
+                            );
+                          }),
+                          const SizedBox(width: 8),
+                          Text(
+                            rental['calificacion'].toString(),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[900],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (rental['comentario_calificacion'] != null &&
+                          rental['comentario_calificacion']
+                              .toString()
+                              .isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.comment,
+                              size: 18,
+                              color: Colors.grey[700],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                rental['comentario_calificacion'].toString(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 16),
             const Padding(
